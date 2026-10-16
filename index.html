@@ -68,8 +68,12 @@
   </section>
 
   <section>
-    <button class="primary" id="share">카카오톡으로 공유하기</button>
-    <p class="hint">카톡 화면에서 친구를 한 번에 10명까지(단체방은 5개까지) 고를 수 있어요. 더 보내려면 다시 누르세요.</p>
+    <button class="primary" id="share">카톡에서 거래처 골라 보내기</button>
+    <ol class="hint" style="padding-left:18px;margin:8px 0 0">
+      <li>버튼을 누르면 카카오톡이 열려요. (PC에서는 카카오 로그인 창이 먼저 떠요)</li>
+      <li>카톡의 <b>친구</b> 또는 <b>채팅방</b> 목록에서 거래처를 체크해요. 한 번에 10명, 단체방은 5개까지.</li>
+      <li><b>확인/보내기</b>를 누르면 끝. 더 보낼 곳이 있으면 버튼을 다시 눌러요.</li>
+    </ol>
     <p class="status" id="status" role="status"></p>
   </section>
 
@@ -208,7 +212,7 @@
     if (title) template.buttonTitle = title;
     try {
       Kakao.Share.sendDefault(template);
-      setStatus('카카오톡에서 받을 친구를 골라 보내 주세요.');
+      setStatus('카카오톡 화면에서 받을 거래처를 체크하고 보내기를 눌러 주세요.');
     } catch (e) {
       setStatus('공유를 열지 못했어요: ' + e.message, true);
     }
