@@ -12,9 +12,11 @@
   :root {
     --bg: #f6f6f4; --card: #fff; --text: #1d1d1b; --muted: #6b6b66;
     --line: #e2e2dc; --accent: #fee500; --accent-text: #191600; --danger: #c0392b;
+    --ok: #1e7d3c; --ok-bg: #e5f4ea; --sel: #fff7c2;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #161615; --card: #22221f; --text: #f0f0ea; --muted: #a3a39b; --line: #3a3a35; }
+    :root { --bg: #161615; --card: #22221f; --text: #f0f0ea; --muted: #a3a39b; --line: #3a3a35;
+            --ok: #6fd08f; --ok-bg: #1d3325; --sel: #3a3510; }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -25,18 +27,31 @@
   h2 { font-size: 16px; margin: 0 0 8px; }
   section { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
             padding: 16px; margin-bottom: 12px; }
-  textarea { width: 100%; font: inherit; color: inherit; background: transparent;
-             border: 1px solid var(--line); border-radius: 8px; padding: 10px; resize: vertical; }
-  .row { display: flex; gap: 8px; align-items: center; }
+  textarea, input[type=search] { width: 100%; font: inherit; color: inherit; background: transparent;
+             border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  textarea { resize: vertical; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
   button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text);
            border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+  button.small { padding: 6px 10px; font-size: 14px; }
   button.primary { width: 100%; background: var(--accent); color: var(--accent-text);
                    border-color: var(--accent); font-weight: 700; padding: 14px; font-size: 17px; }
+  button.ok { width: 100%; background: var(--ok-bg); color: var(--ok); border-color: var(--ok); font-weight: 700; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .tabs { display: flex; gap: 6px; margin-top: 10px; }
+  .tabs button { flex: 1; padding: 8px; font-size: 14px; }
+  .tabs button.on { background: var(--text); color: var(--card); border-color: var(--text); }
   ul { list-style: none; padding: 0; margin: 8px 0 0; }
-  #vendors li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
-  #vendors li span { flex: 1; }
-  #vendors li button { padding: 4px 10px; font-size: 13px; }
+  #vendors li { display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-top: 1px solid var(--line); border-radius: 6px; }
+  #vendors li.selected { background: var(--sel); }
+  #vendors li label { flex: 1; display: flex; gap: 10px; align-items: center; cursor: pointer; }
+  #vendors li input { width: 20px; height: 20px; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .badge.sent { background: var(--ok-bg); color: var(--ok); }
+  .badge.not { background: var(--bg); color: var(--muted); }
+  #vendors li button { padding: 4px 8px; font-size: 13px; }
+  .picked { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg); font-size: 14px; }
   .status { margin: 10px 0 0; font-size: 14px; }
   .status.error { color: var(--danger); }
   /* PC 넓은 화면: 왼쪽은 보낼 내용, 오른쪽은 거래처 목록 */
@@ -66,22 +81,46 @@
     </section>
 
     <section>
-      <button class="primary" id="send"></button>
+      <h2>보내기</h2>
+      <div class="picked" id="picked"></div>
+      <button class="primary" id="send" style="margin-top:10px"></button>
       <button class="primary" id="copyImage" hidden style="margin-top:8px">사진 복사</button>
       <p class="hint" id="howto"></p>
       <p class="status" id="status" role="status"></p>
+      <div id="confirmBox" hidden style="margin-top:10px">
+        <button class="ok" id="markSent">카톡에서 다 보냈어요 → 보냄으로 체크</button>
+      </div>
     </section>
   </div>
 
   <section>
     <h2>거래처 목록</h2>
-    <textarea id="newVendors" rows="2" placeholder="거래처 이름 (여러 곳은 쉼표나 줄바꿈으로)"></textarea>
-    <button id="addVendor" style="margin-top:8px;width:100%">목록에 추가</button>
+    <input type="search" id="search" placeholder="거래처 검색">
+    <div class="tabs" id="tabs">
+      <button data-f="all" class="on">전체</button>
+      <button data-f="not">안 보냄</button>
+      <button data-f="sent">보냄</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="small" id="pickNext">안 보낸 곳 10개 고르기</button>
+      <button class="small" id="clearPick">선택 해제</button>
+      <span class="hint" id="pickCount" style="margin:0 0 0 auto"></span>
+    </div>
     <ul id="vendors"></ul>
+    <p class="hint" id="progress"></p>
+
+    <details style="margin-top:14px">
+      <summary style="cursor:pointer;font-weight:600">거래처 추가</summary>
+      <button id="fromContacts" hidden style="margin-top:10px;width:100%">휴대폰 연락처에서 불러오기</button>
+      <textarea id="newVendors" rows="2" style="margin-top:10px" placeholder="거래처 이름 (여러 곳은 쉼표나 줄바꿈으로)"></textarea>
+      <button id="addVendor" style="margin-top:8px;width:100%">목록에 추가</button>
+    </details>
+    <button class="small" id="resetSent" style="margin-top:14px">보냄 체크 모두 지우기 (새로 보낼 때)</button>
   </section>
 </main>
 
 <script>
+  const MAX_PICK = 10;
   const store = {
     get(k, fallback) { try { const v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
@@ -95,10 +134,9 @@
   // 휴대폰은 기본 공유 화면으로, PC는 복사 후 카톡에 붙여넣는 방식으로 보냅니다.
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
-  $('send').textContent = isMobile ? '카톡으로 보내기' : '글 복사';
   $('howto').textContent = isMobile
-    ? '공유 화면에서 카카오톡을 고르고, 거래처를 체크해 보내세요.'
-    : 'PC 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보낸 뒤, 말풍선 오른쪽 클릭 → 전달로 거래처를 골라 보내세요.';
+    ? '공유 화면에서 카카오톡을 고르고, 위에 적힌 거래처를 카톡에서 검색해 체크한 뒤 보내세요.'
+    : 'PC 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보낸 뒤, 말풍선 오른쪽 클릭 → 전달에서 위 거래처를 골라 보내세요.';
 
   // 메시지: 마지막으로 쓴 내용을 기억합니다.
   const message = $('message');
@@ -125,28 +163,156 @@
     $('copyImage').hidden = isMobile;
   });
 
+  // ---------- 거래처 목록 (이 기기에만 저장) ----------
+  // 각 거래처: { name, sentAt }  sentAt이 있으면 보낸 것
+  const DEFAULT_VENDORS = ['플로르', '소가', '네일레본', '스토니', '네일바이진', '유자', '슈베'];
+  let vendors = store.get('vendors', []).map(v => typeof v === 'string' ? { name: v, sentAt: null } : { name: v.name, sentAt: v.sentAt || null });
+  if (!store.get('defaultsAdded', false)) {
+    DEFAULT_VENDORS.forEach(n => { if (!vendors.some(v => v.name === n)) vendors.push({ name: n, sentAt: null }); });
+    store.set('defaultsAdded', true);
+  }
+  let picked = new Set();   // 이번에 보낼 거래처 이름
+  let filter = 'all';
+
+  function save() { store.set('vendors', vendors); render(); }
+  function fmt(ts) {
+    const d = new Date(ts);
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function render() {
+    const q = $('search').value.trim();
+    const ul = $('vendors');
+    ul.innerHTML = '';
+    vendors.forEach((v, i) => {
+      if (q && !v.name.includes(q)) return;
+      if (filter === 'not' && v.sentAt) return;
+      if (filter === 'sent' && !v.sentAt) return;
+      const li = document.createElement('li');
+      if (picked.has(v.name)) li.className = 'selected';
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = picked.has(v.name);
+      cb.disabled = !cb.checked && picked.size >= MAX_PICK;
+      cb.addEventListener('change', () => {
+        if (cb.checked) picked.add(v.name); else picked.delete(v.name);
+        render();
+      });
+      const span = document.createElement('span');
+      span.textContent = v.name;
+      label.append(cb, span);
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + (v.sentAt ? 'sent' : 'not');
+      badge.textContent = v.sentAt ? '보냄 ' + fmt(v.sentAt) : '안 보냄';
+      const del = document.createElement('button');
+      del.textContent = '삭제';
+      del.addEventListener('click', () => {
+        if (!confirm(`${v.name}을(를) 목록에서 지울까요?`)) return;
+        picked.delete(v.name); vendors.splice(i, 1); save();
+      });
+      li.append(label, badge, del);
+      ul.append(li);
+    });
+    const sent = vendors.filter(v => v.sentAt).length;
+    $('progress').textContent = vendors.length ? `전체 ${vendors.length}곳 · 보냄 ${sent}곳 · 안 보냄 ${vendors.length - sent}곳` : '거래처를 추가해 주세요.';
+    $('pickCount').textContent = `선택 ${picked.size}/${MAX_PICK}`;
+    const names = [...picked];
+    $('picked').textContent = names.length ? `받는 곳 (${names.length}곳): ${names.join(', ')}` : '오른쪽(아래) 거래처 목록에서 보낼 곳을 10곳까지 체크하세요.';
+    $('send').textContent = isMobile ? `선택한 ${names.length}곳에 카톡 보내기` : `글 복사 (선택한 ${names.length}곳)`;
+    $('send').disabled = names.length === 0;
+  }
+
+  $('search').addEventListener('input', render);
+  $('tabs').addEventListener('click', (e) => {
+    const f = e.target.dataset && e.target.dataset.f;
+    if (!f) return;
+    filter = f;
+    [...$('tabs').children].forEach(b => b.classList.toggle('on', b.dataset.f === f));
+    render();
+  });
+  $('pickNext').addEventListener('click', () => {
+    picked = new Set(vendors.filter(v => !v.sentAt).slice(0, MAX_PICK).map(v => v.name));
+    if (!picked.size) setStatus('안 보낸 거래처가 없어요.');
+    render();
+  });
+  $('clearPick').addEventListener('click', () => { picked.clear(); render(); });
+
+  function addNames(names) {
+    let added = 0;
+    names.map(n => n.trim()).filter(Boolean).forEach(n => {
+      if (vendors.some(v => v.name === n)) return;
+      vendors.push({ name: n, sentAt: null });
+      added++;
+    });
+    save();
+    return added;
+  }
+  $('addVendor').addEventListener('click', () => {
+    const added = addNames($('newVendors').value.split(/[,，\n]/));
+    $('newVendors').value = '';
+    setStatus(`${added}곳을 추가했어요.`);
+  });
+
+  // 휴대폰 연락처에서 이름을 골라 불러옵니다 (안드로이드 크롬에서 지원).
+  if ('contacts' in navigator && 'ContactsManager' in window) {
+    $('fromContacts').hidden = false;
+    $('fromContacts').addEventListener('click', async () => {
+      try {
+        const list = await navigator.contacts.select(['name'], { multiple: true });
+        const added = addNames(list.map(c => (c.name && c.name[0]) || ''));
+        setStatus(`연락처에서 ${added}곳을 추가했어요.`);
+      } catch (e) {
+        if (e.name !== 'AbortError') setStatus('연락처를 불러오지 못했어요: ' + e.message, true);
+      }
+    });
+  }
+
+  $('resetSent').addEventListener('click', () => {
+    if (!confirm('보냄 체크를 모두 지울까요? 새 메시지를 처음부터 보낼 때 쓰세요.')) return;
+    vendors.forEach(v => v.sentAt = null); save();
+  });
+
+  // ---------- 보내기 ----------
   async function copyText(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
   }
+  function askConfirm() {
+    $('confirmBox').hidden = false;
+  }
+  $('markSent').addEventListener('click', () => {
+    const now = Date.now();
+    vendors.forEach(v => { if (picked.has(v.name)) v.sentAt = now; });
+    const n = picked.size;
+    picked.clear();
+    $('confirmBox').hidden = true;
+    save();
+    setStatus(`${n}곳을 보냄으로 체크했어요. 다음 10곳을 고르세요.`);
+  });
 
   $('send').addEventListener('click', async () => {
     const text = message.value.trim();
     const file = imageInput.files[0];
+    if (!picked.size) return;
     if (!isMobile) {
       if (!text) { setStatus('복사할 메시지를 입력해 주세요.', true); message.focus(); return; }
-      setStatus(await copyText(text)
-        ? '글을 복사했어요. 카톡에 Ctrl+V로 붙여넣으세요.'
-        : '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요.');
+      if (await copyText(text)) {
+        setStatus('글을 복사했어요. 카톡에 붙여넣고 전달로 보낸 뒤 아래 버튼을 눌러 주세요.');
+        askConfirm();
+      } else {
+        setStatus('복사하지 못했어요. 글을 직접 선택해서 복사해 주세요.', true);
+      }
       return;
     }
     if (!text && !file) { setStatus('보낼 메시지나 이미지를 넣어 주세요.', true); message.focus(); return; }
+    if (!navigator.share) { setStatus('이 브라우저는 공유를 지원하지 않아요. 크롬이나 사파리로 열어 주세요.', true); return; }
     const data = {};
     if (text) data.text = text;
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
-    if (!navigator.share) { setStatus('이 브라우저는 공유를 지원하지 않아요. 크롬이나 사파리로 열어 주세요.', true); return; }
     try {
       await navigator.share(data);
-      setStatus('');
+      setStatus('카톡에서 다 보냈으면 아래 버튼을 눌러 주세요.');
+      askConfirm();
     } catch (e) {
       if (e.name !== 'AbortError') setStatus('공유 화면을 열지 못했어요: ' + e.message, true);
     }
@@ -172,36 +338,7 @@
     }
   });
 
-  // 거래처 목록 (이 기기에만 저장). 처음 열면 기본 거래처가 들어 있습니다.
-  const DEFAULT_VENDORS = ['플로르', '소가', '네일레본', '스토니', '네일바이진', '유자', '슈베'];
-  let vendors = store.get('vendors', []).map(v => typeof v === 'string' ? v : v.name);
-  if (!store.get('defaultsAdded', false)) {
-    DEFAULT_VENDORS.forEach(n => { if (!vendors.includes(n)) vendors.push(n); });
-    store.set('vendors', vendors);
-    store.set('defaultsAdded', true);
-  }
-  function saveVendors() { store.set('vendors', vendors); renderVendors(); }
-  function renderVendors() {
-    const ul = $('vendors');
-    ul.innerHTML = '';
-    vendors.forEach((name, i) => {
-      const li = document.createElement('li');
-      const span = document.createElement('span');
-      span.textContent = name;
-      const del = document.createElement('button');
-      del.textContent = '삭제';
-      del.addEventListener('click', () => { vendors.splice(i, 1); saveVendors(); });
-      li.append(span, del);
-      ul.append(li);
-    });
-  }
-  $('addVendor').addEventListener('click', () => {
-    const names = $('newVendors').value.split(/[,，\n]/).map(n => n.trim()).filter(Boolean);
-    names.forEach(n => { if (!vendors.includes(n)) vendors.push(n); });
-    $('newVendors').value = '';
-    saveVendors();
-  });
-  renderVendors();
+  save();
 </script>
 </body>
 </html>
