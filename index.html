@@ -8,7 +8,6 @@
 <link rel="icon" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-512.png">
 <meta name="theme-color" content="#1b2f66">
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.js" crossorigin="anonymous"></script>
 <style>
   :root {
     --bg: #f6f6f4; --card: #fff; --text: #1d1d1b; --muted: #6b6b66;
@@ -26,174 +25,90 @@
   h2 { font-size: 16px; margin: 0 0 8px; }
   section { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
             padding: 16px; margin-bottom: 12px; }
-  textarea, input[type=text] { width: 100%; font: inherit; color: inherit; background: transparent;
-            border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
-  textarea { min-height: 140px; resize: vertical; }
+  textarea { width: 100%; font: inherit; color: inherit; background: transparent;
+             border: 1px solid var(--line); border-radius: 8px; padding: 10px; resize: vertical; }
   .row { display: flex; gap: 8px; align-items: center; }
-  .row input[type=text] { flex: 1; }
   .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
-  .count.over { color: var(--danger); font-weight: 600; }
   button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text);
            border-radius: 8px; padding: 10px 14px; cursor: pointer; }
   button.primary { width: 100%; background: var(--accent); color: var(--accent-text);
                    border-color: var(--accent); font-weight: 700; padding: 14px; font-size: 17px; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
   ul { list-style: none; padding: 0; margin: 8px 0 0; }
   #vendors li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
-  #vendors li label { flex: 1; display: flex; gap: 10px; align-items: center; }
-  #vendors li.done label span { color: var(--muted); text-decoration: line-through; }
+  #vendors li span { flex: 1; }
   #vendors li button { padding: 4px 10px; font-size: 13px; }
   .status { margin: 10px 0 0; font-size: 14px; }
   .status.error { color: var(--danger); }
-  details summary { cursor: pointer; font-weight: 600; }
   /* PC 넓은 화면: 왼쪽은 보낼 내용, 오른쪽은 거래처 목록 */
   @media (min-width: 900px) {
     main { max-width: 1100px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
     main > h1 { grid-column: 1 / -1; }
   }
-  .copybtns { display: flex; gap: 8px; }
-  .copybtns button.primary { flex: 1; }
 </style>
 </head>
 <body>
 <main>
   <h1>거래처 카톡 공유</h1>
 
-  <div class="col">
-  <section>
-    <h2>보낼 메시지</h2>
-    <textarea id="message" maxlength="200" placeholder="예) 안녕하세요, 이번 주 신상품 입고 안내드립니다."></textarea>
-    <p class="hint"><span id="count" class="count">0</span> / 200자 (카카오 공유 글자 수 제한)</p>
-    <div class="row" style="margin-top:8px">
-      <input type="text" id="buttonTitle" placeholder="카드 버튼 이름 (카드 형태일 때만, 선택)">
-    </div>
-  </section>
+  <div>
+    <section>
+      <h2>보낼 메시지</h2>
+      <textarea id="message" rows="6" placeholder="예) 안녕하세요, 이번 주 신상품 입고 안내드립니다."></textarea>
+    </section>
 
-  <section>
-    <h2>보낼 이미지 (선택)</h2>
-    <div class="row">
-      <input type="file" id="image" accept="image/*" style="flex:1">
-      <button id="clearImage" hidden>빼기</button>
-    </div>
-    <img id="preview" alt="" hidden style="display:block;max-width:100%;max-height:240px;margin-top:10px;border-radius:8px">
-    <p class="hint">5MB 이하 이미지 1장. 글과 함께 사진으로 보내져요.</p>
-  </section>
-
-  <section>
-    <div id="mobileSend">
-      <button class="primary" id="plainShare">내용만 카톡으로 보내기</button>
-      <ol class="hint" style="padding-left:18px;margin:8px 0 0">
-        <li>버튼을 누르면 휴대폰 공유 화면이 떠요. 거기서 <b>카카오톡</b>을 골라요.</li>
-        <li>카톡에서 거래처를 여러 명 체크하고 <b>확인</b>을 누르면 글과 사진이 일반 메시지로 가요.</li>
-      </ol>
-    </div>
-    <div id="pcSend" hidden>
-      <div class="copybtns">
-        <button class="primary" id="copyText">① 글 복사</button>
-        <button class="primary" id="copyImage" hidden>② 사진 복사</button>
+    <section>
+      <h2>보낼 이미지 (선택)</h2>
+      <div class="row">
+        <input type="file" id="image" accept="image/*" style="flex:1">
+        <button id="clearImage" hidden>빼기</button>
       </div>
-      <ol class="hint" style="padding-left:18px;margin:8px 0 0">
-        <li>PC 카톡에서 <b>나와의 채팅</b>을 열고, 복사한 글(사진)을 <b>Ctrl+V</b>로 붙여넣어 보내요.</li>
-        <li>보낸 말풍선에 마우스 오른쪽 클릭 → <b>전달</b>을 눌러요.</li>
-        <li>오른쪽 <b>이번에 보낼 곳</b>의 거래처를 검색해 체크하고 <b>확인</b>. 사진도 같은 방법으로 전달해요.</li>
-      </ol>
-    </div>
-    <p class="status" id="status" role="status"></p>
-    <button id="share" style="width:100%;margin-top:12px">카드 형태로 보내기 (버튼 달린 카톡 카드)</button>
-  </section>
-  </div>
+      <img id="preview" alt="" hidden style="display:block;max-width:100%;max-height:240px;margin-top:10px;border-radius:8px">
+    </section>
 
-  <div class="col">
+    <section>
+      <button class="primary" id="send"></button>
+      <button class="primary" id="copyImage" hidden style="margin-top:8px">사진 복사</button>
+      <p class="hint" id="howto"></p>
+      <p class="status" id="status" role="status"></p>
+    </section>
+  </div>
 
   <section>
     <h2>거래처 목록</h2>
-    <p class="hint" style="margin-top:0">여러 곳을 한 번에 넣을 수 있어요. 쉼표나 줄바꿈으로 나눠 주세요. 카톡에 저장된 이름과 같게 적으면 카톡에서 찾기 쉬워요. 이 기기에만 저장됩니다.</p>
-    <textarea id="newVendors" style="min-height:70px;margin-top:8px" placeholder="예) 소가, 유자, 슈베&#10;네일레본"></textarea>
+    <textarea id="newVendors" rows="2" placeholder="거래처 이름 (여러 곳은 쉼표나 줄바꿈으로)"></textarea>
     <button id="addVendor" style="margin-top:8px;width:100%">목록에 추가</button>
-    <p class="hint" id="addMsg"></p>
-
-    <div id="batchBox" style="margin-top:16px;padding:12px;border-radius:8px;background:var(--bg)">
-      <h2 id="batchTitle" style="margin:0 0 6px"></h2>
-      <ol id="batchList" style="margin:0;padding-left:22px"></ol>
-      <p class="hint" id="batchHint"></p>
-      <button class="primary" id="sendBatch" style="margin-top:8px">이 묶음에 내용 보내기</button>
-      <button id="markBatch" style="width:100%;margin-top:8px">이번 묶음 보냄으로 표시하고 다음 10곳 보기</button>
-    </div>
-
-    <input type="text" id="searchVendor" placeholder="거래처 검색" style="margin-top:16px">
     <ul id="vendors"></ul>
-    <p class="hint" id="progress"></p>
-    <button id="resetChecks" style="margin-top:8px">보냄 표시 모두 지우기 (처음부터 다시)</button>
   </section>
-
-  <section>
-    <details id="settings">
-      <summary>설정</summary>
-      <p class="hint">카카오 개발자 사이트에서 받은 JavaScript 키를 넣어 주세요.</p>
-      <div class="row">
-        <input type="text" id="jsKey" placeholder="JavaScript 키" autocomplete="off">
-        <button id="saveKey">저장</button>
-      </div>
-    </details>
-  </section>
-  </div>
 </main>
 
 <script>
-  // 키를 여기에 직접 넣어도 됩니다. 비워 두면 설정에 저장한 키를 씁니다.
-  const KAKAO_JS_KEY = '1134c0b5fbae2bc3a9b8c430b5f90dbb';
-
   const store = {
     get(k, fallback) { try { const v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
   };
   const $ = (id) => document.getElementById(id);
-  const statusEl = $('status');
   function setStatus(text, isError) {
-    statusEl.textContent = text;
-    statusEl.className = 'status' + (isError ? ' error' : '');
+    $('status').textContent = text;
+    $('status').className = 'status' + (isError ? ' error' : '');
   }
+
+  // 휴대폰은 기본 공유 화면으로, PC는 복사 후 카톡에 붙여넣는 방식으로 보냅니다.
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  $('send').textContent = isMobile ? '카톡으로 보내기' : '글 복사';
+  $('howto').textContent = isMobile
+    ? '공유 화면에서 카카오톡을 고르고, 거래처를 체크해 보내세요.'
+    : 'PC 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보낸 뒤, 말풍선 오른쪽 클릭 → 전달로 거래처를 골라 보내세요.';
 
   // 메시지: 마지막으로 쓴 내용을 기억합니다.
   const message = $('message');
-  const buttonTitle = $('buttonTitle');
   message.value = store.get('message', '');
-  buttonTitle.value = store.get('buttonTitle', '');
-  function updateCount() {
-    const n = message.value.length;
-    $('count').textContent = n;
-    $('count').classList.toggle('over', n > 200);
-  }
-  message.addEventListener('input', () => { store.set('message', message.value); updateCount(); });
-  buttonTitle.addEventListener('input', () => store.set('buttonTitle', buttonTitle.value));
-  updateCount();
+  message.addEventListener('input', () => store.set('message', message.value));
 
-  // 카카오 SDK 초기화
-  function currentKey() { return KAKAO_JS_KEY || store.get('jsKey', ''); }
-  function initKakao() {
-    if (!window.Kakao) { setStatus('카카오 SDK를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.', true); return false; }
-    if (Kakao.isInitialized()) return true;
-    const key = currentKey();
-    if (!key) { setStatus('먼저 아래 설정에 JavaScript 키를 넣어 주세요.', true); $('settings').open = true; return false; }
-    try { Kakao.init(key); return Kakao.isInitialized(); }
-    catch (e) { setStatus('키가 올바르지 않아요: ' + e.message, true); return false; }
-  }
-  $('jsKey').value = store.get('jsKey', '');
-  $('saveKey').addEventListener('click', () => {
-    const key = $('jsKey').value.trim();
-    store.set('jsKey', key);
-    if (window.Kakao && Kakao.isInitialized()) { location.reload(); return; }
-    setStatus(key ? '키를 저장했어요.' : '키를 지웠어요.');
-  });
-
-  // 이미지: 고르는 즉시 카카오 서버에 올려 두고 주소를 기억합니다.
-  // (공유 버튼을 누를 때 올리면 휴대폰에서 카톡 창이 막힐 수 있어서 미리 올립니다.)
-  let imageUrl = '';
-  let uploading = false;
+  // 이미지
   const imageInput = $('image');
   const preview = $('preview');
   function clearImage() {
-    imageUrl = '';
     imageInput.value = '';
     preview.hidden = true;
     preview.removeAttribute('src');
@@ -201,46 +116,43 @@
     $('copyImage').hidden = true;
   }
   $('clearImage').addEventListener('click', () => { clearImage(); setStatus(''); });
-  imageInput.addEventListener('change', async () => {
+  imageInput.addEventListener('change', () => {
     const file = imageInput.files[0];
-    imageUrl = '';
     if (!file) { clearImage(); return; }
-    if (file.size > 5 * 1024 * 1024) { clearImage(); setStatus('이미지는 5MB 이하만 보낼 수 있어요.', true); return; }
     preview.src = URL.createObjectURL(file);
-    $('copyImage').hidden = false;
     preview.hidden = false;
     $('clearImage').hidden = false;
-    if (!initKakao()) return;
-    uploading = true;
-    $('share').disabled = true;
-    setStatus('이미지를 올리는 중이에요...');
+    $('copyImage').hidden = isMobile;
+  });
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  }
+
+  $('send').addEventListener('click', async () => {
+    const text = message.value.trim();
+    const file = imageInput.files[0];
+    if (!isMobile) {
+      if (!text) { setStatus('복사할 메시지를 입력해 주세요.', true); message.focus(); return; }
+      setStatus(await copyText(text)
+        ? '글을 복사했어요. 카톡에 Ctrl+V로 붙여넣으세요.'
+        : '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요.');
+      return;
+    }
+    if (!text && !file) { setStatus('보낼 메시지나 이미지를 넣어 주세요.', true); message.focus(); return; }
+    const data = {};
+    if (text) data.text = text;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
+    if (!navigator.share) { setStatus('이 브라우저는 공유를 지원하지 않아요. 크롬이나 사파리로 열어 주세요.', true); return; }
     try {
-      const res = await Kakao.Share.uploadImage({ file: imageInput.files });
-      imageUrl = res.infos.original.url;
-      setStatus('이미지가 준비됐어요.');
+      await navigator.share(data);
+      setStatus('');
     } catch (e) {
-      clearImage();
-      setStatus('이미지를 올리지 못했어요: ' + (e.message || e), true);
-    } finally {
-      uploading = false;
-      $('share').disabled = false;
+      if (e.name !== 'AbortError') setStatus('공유 화면을 열지 못했어요: ' + e.message, true);
     }
   });
 
-  // PC인지 휴대폰인지 구분합니다. PC는 공유 화면에 카톡이 없어서 복사 후 붙여넣기 방식을 씁니다.
-  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-    || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
-  $('mobileSend').hidden = !isMobile;
-  $('pcSend').hidden = isMobile;
-  if (!isMobile) $('sendBatch').textContent = '글 복사하기 (카톡에서 이 묶음에 전달)';
-
-  $('copyText').addEventListener('click', async () => {
-    const text = message.value.trim();
-    if (!text) { setStatus('복사할 메시지를 입력해 주세요.', true); message.focus(); return; }
-    setStatus(await copyText(text)
-      ? '글을 복사했어요. 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보내세요.'
-      : '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요.');
-  });
+  // PC: 사진을 PNG로 바꿔 클립보드에 넣습니다.
   async function toPngBlob(file) {
     if (file.type === 'image/png') return file;
     const img = await createImageBitmap(file);
@@ -253,156 +165,41 @@
     const file = imageInput.files[0];
     if (!file) return;
     try {
-      const blob = await toPngBlob(file);
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      setStatus('사진을 복사했어요. 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보내세요.');
-    } catch (e) {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': await toPngBlob(file) })]);
+      setStatus('사진을 복사했어요. 카톡에 Ctrl+V로 붙여넣으세요.');
+    } catch {
       setStatus('사진을 복사하지 못했어요. 사진 파일을 카톡 창에 직접 끌어다 놓아 주세요.', true);
     }
   });
 
-  // 내용만 보내기: 휴대폰 기본 공유 화면을 띄워 글과 사진을 일반 메시지로 넘깁니다.
-  async function copyText(text) {
-    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  // 거래처 목록 (이 기기에만 저장). 처음 열면 기본 거래처가 들어 있습니다.
+  const DEFAULT_VENDORS = ['플로르', '소가', '네일레본', '스토니', '네일바이진', '유자', '슈베'];
+  let vendors = store.get('vendors', []).map(v => typeof v === 'string' ? v : v.name);
+  if (!store.get('defaultsAdded', false)) {
+    DEFAULT_VENDORS.forEach(n => { if (!vendors.includes(n)) vendors.push(n); });
+    store.set('vendors', vendors);
+    store.set('defaultsAdded', true);
   }
-  $('plainShare').addEventListener('click', async () => {
-    const text = message.value.trim();
-    const file = imageInput.files[0];
-    if (!text && !file) { setStatus('보낼 메시지나 이미지를 넣어 주세요.', true); message.focus(); return; }
-    const data = {};
-    if (text) data.text = text;
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
-    if (navigator.share && (!file || data.files)) {
-      try {
-        await navigator.share(data);
-        setStatus('보냈어요. 남은 거래처가 있으면 다시 눌러 주세요.');
-      } catch (e) {
-        if (e.name !== 'AbortError') setStatus('공유 화면을 열지 못했어요: ' + e.message, true);
-      }
-      return;
-    }
-    // 공유 화면이 없는 기기(대부분의 PC): 글을 복사해 두고 붙여넣게 안내합니다.
-    if (text && await copyText(text)) {
-      setStatus(file
-        ? '글을 복사했어요. 카톡 대화창에 붙여넣고, 사진은 카톡에 직접 끌어다 놓아 주세요.'
-        : '글을 복사했어요. 카톡 대화창에 붙여넣기(Ctrl+V) 해 주세요.');
-    } else {
-      setStatus('이 기기에서는 바로 공유가 안 돼요. 휴대폰에서 열어 주세요.', true);
-    }
-  });
-
-  // 카드 형태로 공유하기 (카카오 SDK)
-  $('share').addEventListener('click', () => {
-    const text = message.value.trim();
-    if (uploading) { setStatus('이미지를 올리는 중이에요. 잠시 후 다시 눌러 주세요.', true); return; }
-    if (imageInput.files.length && !imageUrl) { setStatus('이미지를 다시 골라 주세요.', true); return; }
-    if (!text && !imageUrl) { setStatus('보낼 메시지나 이미지를 넣어 주세요.', true); message.focus(); return; }
-    if (text.length > 200) { setStatus('메시지는 200자까지 보낼 수 있어요.', true); return; }
-    if (!initKakao()) return;
-    const pageUrl = location.origin + location.pathname;
-    const link = { webUrl: pageUrl, mobileWebUrl: pageUrl };
-    let template;
-    if (imageUrl) {
-      // 첫 줄은 제목, 나머지는 설명으로 들어갑니다.
-      const [first, ...rest] = text.split('\n');
-      template = {
-        objectType: 'feed',
-        content: { title: first || ' ', description: rest.join('\n').trim(), imageUrl, link }
-      };
-    } else {
-      template = { objectType: 'text', text, link };
-    }
-    const title = buttonTitle.value.trim();
-    if (title) template.buttonTitle = title;
-    try {
-      Kakao.Share.sendDefault(template);
-      setStatus('카카오톡 화면에서 받을 거래처를 체크하고 보내기를 눌러 주세요.');
-    } catch (e) {
-      setStatus('공유를 열지 못했어요: ' + e.message, true);
-    }
-  });
-
-  // 거래처 목록: 순서대로 10곳씩 묶어서 보냅니다.
-  const BATCH = 10;
-  let vendors = store.get('vendors', []);
   function saveVendors() { store.set('vendors', vendors); renderVendors(); }
-  function currentBatch() { return vendors.filter(v => !v.done).slice(0, BATCH); }
-  function renderBatch() {
-    const batch = currentBatch();
-    const box = $('batchBox');
-    box.hidden = vendors.length === 0;
-    const doneCount = vendors.filter(v => v.done).length;
-    const ol = $('batchList');
-    ol.innerHTML = '';
-    if (!batch.length) {
-      $('batchTitle').textContent = '모두 보냈어요';
-      $('batchHint').textContent = '새로 보내려면 아래 "보냄 표시 모두 지우기"를 누르세요.';
-      $('markBatch').hidden = true;
-      $('sendBatch').hidden = true;
-      return;
-    }
-    const round = Math.floor(doneCount / BATCH) + 1;
-    $('batchTitle').textContent = `이번에 보낼 곳 (${round}번째 묶음, ${batch.length}곳)`;
-    batch.forEach(v => { const li = document.createElement('li'); li.textContent = v.name; ol.append(li); });
-    $('batchHint').textContent = '보내기 버튼을 누른 뒤 카톡에서 이 거래처들을 검색해 체크하세요.';
-    $('markBatch').hidden = false;
-    $('sendBatch').hidden = false;
-  }
   function renderVendors() {
-    const q = $('searchVendor').value.trim();
     const ul = $('vendors');
     ul.innerHTML = '';
-    vendors.forEach((v, i) => {
-      if (q && !v.name.includes(q)) return;
+    vendors.forEach((name, i) => {
       const li = document.createElement('li');
-      li.className = v.done ? 'done' : '';
-      const label = document.createElement('label');
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = v.done;
-      cb.title = '보냄';
-      cb.addEventListener('change', () => { vendors[i].done = cb.checked; saveVendors(); });
       const span = document.createElement('span');
-      span.textContent = `${i + 1}. ${v.name}`;
-      label.append(cb, span);
-      const up = document.createElement('button');
-      up.textContent = '↑';
-      up.title = '순서 올리기';
-      up.disabled = i === 0;
-      up.addEventListener('click', () => { [vendors[i - 1], vendors[i]] = [vendors[i], vendors[i - 1]]; saveVendors(); });
+      span.textContent = name;
       const del = document.createElement('button');
       del.textContent = '삭제';
-      del.addEventListener('click', () => { if (confirm(`${v.name}을(를) 목록에서 지울까요?`)) { vendors.splice(i, 1); saveVendors(); } });
-      li.append(label, up, del);
+      del.addEventListener('click', () => { vendors.splice(i, 1); saveVendors(); });
+      li.append(span, del);
       ul.append(li);
     });
-    const done = vendors.filter(v => v.done).length;
-    $('progress').textContent = vendors.length ? `전체 ${vendors.length}곳 중 ${done}곳 보냄` : '';
-    $('resetChecks').hidden = vendors.length === 0;
-    renderBatch();
   }
-  function addVendor() {
+  $('addVendor').addEventListener('click', () => {
     const names = $('newVendors').value.split(/[,，\n]/).map(n => n.trim()).filter(Boolean);
-    if (!names.length) return;
-    const existing = new Set(vendors.map(v => v.name));
-    let added = 0, skipped = 0;
-    names.forEach(name => {
-      if (existing.has(name)) { skipped++; return; }
-      existing.add(name);
-      vendors.push({ name, done: false });
-      added++;
-    });
+    names.forEach(n => { if (!vendors.includes(n)) vendors.push(n); });
     $('newVendors').value = '';
     saveVendors();
-    $('addMsg').textContent = (`${added}곳을 추가했어요.` + (skipped ? ` (이미 있는 ${skipped}곳은 뺐어요)` : ''));
-  }
-  $('addVendor').addEventListener('click', addVendor);
-  $('searchVendor').addEventListener('input', renderVendors);
-  $('sendBatch').addEventListener('click', () => (isMobile ? $('plainShare') : $('copyText')).click());
-  $('markBatch').addEventListener('click', () => { currentBatch().forEach(v => v.done = true); saveVendors(); });
-  $('resetChecks').addEventListener('click', () => {
-    if (!confirm('보냄 표시를 모두 지우고 처음 묶음부터 다시 시작할까요?')) return;
-    vendors.forEach(v => v.done = false); saveVendors();
   });
   renderVendors();
 </script>
