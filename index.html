@@ -244,9 +244,9 @@
     $('progress').textContent = vendors.length ? `전체 ${vendors.length}곳 · 보냄 ${sent}곳 · 안 보냄 ${vendors.length - sent}곳` : '거래처를 추가해 주세요.';
     $('pickCount').textContent = `선택 ${picked.size}/${MAX_PICK}`;
     const names = [...picked];
-    $('picked').textContent = names.length ? `받는 곳 (${names.length}곳): ${names.join(', ')}` : '오른쪽(아래) 거래처 목록에서 보낼 곳을 10곳까지 체크하세요.';
-    $('send').textContent = `선택한 ${names.length}곳에 카톡 보내기`;
-    $('send').disabled = names.length === 0 || uploading;
+    $('picked').textContent = names.length ? `받는 곳 (${names.length}곳): ${names.join(', ')}` : '거래처를 체크하지 않아도 보낼 수 있어요. 체크해 두면 보낸 기록이 남아요.';
+    $('send').textContent = names.length ? `선택한 ${names.length}곳에 카톡 보내기` : '카톡 보내기';
+    $('send').disabled = uploading;
   }
 
   $('search').addEventListener('input', render);
@@ -301,7 +301,7 @@
 
   // ---------- 보내기 ----------
   function askConfirm() {
-    $('confirmBox').hidden = false;
+    $('confirmBox').hidden = picked.size === 0;
   }
   $('markSent').addEventListener('click', () => {
     const now = Date.now();
@@ -316,7 +316,6 @@
   $('send').addEventListener('click', async () => {
     const text = message.value.trim();
     const file = imageInput.files[0];
-    if (!picked.size) return;
     if (!text && !file) { setStatus('보낼 메시지나 이미지를 넣어 주세요.', true); message.focus(); return; }
     if (!isMobile) {
       if (!initKakao()) return;
@@ -331,7 +330,7 @@
       }
       try {
         Kakao.Share.sendDefault(template);
-        setStatus('친구 선택창에서 다 보냈으면 아래 버튼을 눌러 주세요.');
+        setStatus(picked.size ? '친구 선택창에서 다 보냈으면 아래 버튼을 눌러 주세요.' : '');
         askConfirm();
       } catch (e) {
         setStatus('카톡 보내기 창을 열지 못했어요: ' + e.message, true);
@@ -344,7 +343,7 @@
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
     try {
       await navigator.share(data);
-      setStatus('카톡에서 다 보냈으면 아래 버튼을 눌러 주세요.');
+      setStatus(picked.size ? '카톡에서 다 보냈으면 아래 버튼을 눌러 주세요.' : '');
       askConfirm();
     } catch (e) {
       if (e.name !== 'AbortError') setStatus('공유 화면을 열지 못했어요: ' + e.message, true);
