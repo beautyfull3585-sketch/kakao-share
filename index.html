@@ -79,15 +79,24 @@
   </section>
 
   <section>
-    <h2>거래처 체크</h2>
-    <p class="hint" style="margin-top:0">보낸 거래처에 체크해 두면 다음 10곳을 고르기 쉬워요. 이 기기에만 저장됩니다.</p>
-    <div class="row" style="margin-top:8px">
-      <input type="text" id="newVendor" placeholder="거래처 이름">
-      <button id="addVendor">추가</button>
+    <h2>거래처 목록</h2>
+    <p class="hint" style="margin-top:0">여러 곳을 한 번에 넣을 수 있어요. 쉼표나 줄바꿈으로 나눠 주세요. 카톡에 저장된 이름과 같게 적으면 카톡에서 찾기 쉬워요. 이 기기에만 저장됩니다.</p>
+    <textarea id="newVendors" style="min-height:70px;margin-top:8px" placeholder="예) 소가, 유자, 슈베&#10;네일레본"></textarea>
+    <button id="addVendor" style="margin-top:8px;width:100%">목록에 추가</button>
+    <p class="hint" id="addMsg"></p>
+
+    <div id="batchBox" style="margin-top:16px;padding:12px;border-radius:8px;background:var(--bg)">
+      <h2 id="batchTitle" style="margin:0 0 6px"></h2>
+      <ol id="batchList" style="margin:0;padding-left:22px"></ol>
+      <p class="hint" id="batchHint"></p>
+      <button class="primary" id="sendBatch" style="margin-top:8px">이 묶음에 내용 보내기</button>
+      <button id="markBatch" style="width:100%;margin-top:8px">이번 묶음 보냄으로 표시하고 다음 10곳 보기</button>
     </div>
+
+    <input type="text" id="searchVendor" placeholder="거래처 검색" style="margin-top:16px">
     <ul id="vendors"></ul>
     <p class="hint" id="progress"></p>
-    <button id="resetChecks" style="margin-top:8px">체크 모두 해제</button>
+    <button id="resetChecks" style="margin-top:8px">보냄 표시 모두 지우기 (처음부터 다시)</button>
   </section>
 
   <section>
@@ -249,42 +258,88 @@
     }
   });
 
-  // 거래처 체크 목록
+  // 거래처 목록: 순서대로 10곳씩 묶어서 보냅니다.
+  const BATCH = 10;
   let vendors = store.get('vendors', []);
   function saveVendors() { store.set('vendors', vendors); renderVendors(); }
+  function currentBatch() { return vendors.filter(v => !v.done).slice(0, BATCH); }
+  function renderBatch() {
+    const batch = currentBatch();
+    const box = $('batchBox');
+    box.hidden = vendors.length === 0;
+    const doneCount = vendors.filter(v => v.done).length;
+    const ol = $('batchList');
+    ol.innerHTML = '';
+    if (!batch.length) {
+      $('batchTitle').textContent = '모두 보냈어요';
+      $('batchHint').textContent = '새로 보내려면 아래 "보냄 표시 모두 지우기"를 누르세요.';
+      $('markBatch').hidden = true;
+      $('sendBatch').hidden = true;
+      return;
+    }
+    const round = Math.floor(doneCount / BATCH) + 1;
+    $('batchTitle').textContent = `이번에 보낼 곳 (${round}번째 묶음, ${batch.length}곳)`;
+    batch.forEach(v => { const li = document.createElement('li'); li.textContent = v.name; ol.append(li); });
+    $('batchHint').textContent = '보내기 버튼을 누른 뒤 카톡에서 이 거래처들을 검색해 체크하세요.';
+    $('markBatch').hidden = false;
+    $('sendBatch').hidden = false;
+  }
   function renderVendors() {
+    const q = $('searchVendor').value.trim();
     const ul = $('vendors');
     ul.innerHTML = '';
     vendors.forEach((v, i) => {
+      if (q && !v.name.includes(q)) return;
       const li = document.createElement('li');
       li.className = v.done ? 'done' : '';
       const label = document.createElement('label');
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = v.done;
+      cb.title = '보냄';
       cb.addEventListener('change', () => { vendors[i].done = cb.checked; saveVendors(); });
       const span = document.createElement('span');
-      span.textContent = v.name;
+      span.textContent = `${i + 1}. ${v.name}`;
       label.append(cb, span);
+      const up = document.createElement('button');
+      up.textContent = '↑';
+      up.title = '순서 올리기';
+      up.disabled = i === 0;
+      up.addEventListener('click', () => { [vendors[i - 1], vendors[i]] = [vendors[i], vendors[i - 1]]; saveVendors(); });
       const del = document.createElement('button');
       del.textContent = '삭제';
-      del.addEventListener('click', () => { vendors.splice(i, 1); saveVendors(); });
-      li.append(label, del);
+      del.addEventListener('click', () => { if (confirm(`${v.name}을(를) 목록에서 지울까요?`)) { vendors.splice(i, 1); saveVendors(); } });
+      li.append(label, up, del);
       ul.append(li);
     });
     const done = vendors.filter(v => v.done).length;
-    $('progress').textContent = vendors.length ? `${vendors.length}곳 중 ${done}곳 보냄` : '';
+    $('progress').textContent = vendors.length ? `전체 ${vendors.length}곳 중 ${done}곳 보냄` : '';
+    $('resetChecks').hidden = vendors.length === 0;
+    renderBatch();
   }
   function addVendor() {
-    const name = $('newVendor').value.trim();
-    if (!name) return;
-    vendors.push({ name, done: false });
-    $('newVendor').value = '';
+    const names = $('newVendors').value.split(/[,，\n]/).map(n => n.trim()).filter(Boolean);
+    if (!names.length) return;
+    const existing = new Set(vendors.map(v => v.name));
+    let added = 0, skipped = 0;
+    names.forEach(name => {
+      if (existing.has(name)) { skipped++; return; }
+      existing.add(name);
+      vendors.push({ name, done: false });
+      added++;
+    });
+    $('newVendors').value = '';
     saveVendors();
+    $('addMsg').textContent = (`${added}곳을 추가했어요.` + (skipped ? ` (이미 있는 ${skipped}곳은 뺐어요)` : ''));
   }
   $('addVendor').addEventListener('click', addVendor);
-  $('newVendor').addEventListener('keydown', (e) => { if (e.key === 'Enter') addVendor(); });
-  $('resetChecks').addEventListener('click', () => { vendors.forEach(v => v.done = false); saveVendors(); });
+  $('searchVendor').addEventListener('input', renderVendors);
+  $('sendBatch').addEventListener('click', () => $('plainShare').click());
+  $('markBatch').addEventListener('click', () => { currentBatch().forEach(v => v.done = true); saveVendors(); });
+  $('resetChecks').addEventListener('click', () => {
+    if (!confirm('보냄 표시를 모두 지우고 처음 묶음부터 다시 시작할까요?')) return;
+    vendors.forEach(v => v.done = false); saveVendors();
+  });
   renderVendors();
 </script>
 </body>
