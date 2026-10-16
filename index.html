@@ -8,6 +8,7 @@
 <link rel="icon" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-512.png">
 <meta name="theme-color" content="#1b2f66">
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.js" crossorigin="anonymous"></script>
 <style>
   :root {
     --bg: #f6f6f4; --card: #fff; --text: #1d1d1b; --muted: #6b6b66;
@@ -84,7 +85,6 @@
       <h2>보내기</h2>
       <div class="picked" id="picked"></div>
       <button class="primary" id="send" style="margin-top:10px"></button>
-      <button class="primary" id="copyImage" hidden style="margin-top:8px">사진 복사</button>
       <p class="hint" id="howto"></p>
       <p class="status" id="status" role="status"></p>
       <div id="confirmBox" hidden style="margin-top:10px">
@@ -136,7 +136,17 @@
     || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
   $('howto').textContent = isMobile
     ? '공유 화면에서 카카오톡을 고르고, 위에 적힌 거래처를 카톡에서 검색해 체크한 뒤 보내세요.'
-    : 'PC 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보낸 뒤, 말풍선 오른쪽 클릭 → 전달에서 위 거래처를 골라 보내세요.';
+    : '카카오 로그인 창이 뜨면 로그인하고, 친구 선택창에서 위 거래처를 체크해 보내세요. PC에서는 카톡 카드 형태로 갑니다.';
+
+  // PC는 카카오톡 공유(카카오 SDK)로 친구 선택창을 띄웁니다.
+  const KAKAO_JS_KEY = '1134c0b5fbae2bc3a9b8c430b5f90dbb';
+  function initKakao() {
+    if (!window.Kakao) { setStatus('카카오 기능을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.', true); return false; }
+    if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
+    return true;
+  }
+  let imageUrl = '';      // 카카오 서버에 올린 이미지 주소 (PC 전송용)
+  let uploading = false;
 
   // 메시지: 마지막으로 쓴 내용을 기억합니다.
   const message = $('message');
@@ -151,16 +161,32 @@
     preview.hidden = true;
     preview.removeAttribute('src');
     $('clearImage').hidden = true;
-    $('copyImage').hidden = true;
+    imageUrl = '';
   }
   $('clearImage').addEventListener('click', () => { clearImage(); setStatus(''); });
-  imageInput.addEventListener('change', () => {
+  imageInput.addEventListener('change', async () => {
     const file = imageInput.files[0];
+    imageUrl = '';
     if (!file) { clearImage(); return; }
     preview.src = URL.createObjectURL(file);
     preview.hidden = false;
     $('clearImage').hidden = false;
-    $('copyImage').hidden = isMobile;
+    if (isMobile) return;
+    // PC: 보내기 버튼을 누르기 전에 미리 카카오 서버에 올려 둡니다 (최대 5MB).
+    if (file.size > 5 * 1024 * 1024) { clearImage(); setStatus('이미지는 5MB 이하만 보낼 수 있어요.', true); return; }
+    if (!initKakao()) return;
+    uploading = true; render();
+    setStatus('이미지를 준비하는 중이에요...');
+    try {
+      const res = await Kakao.Share.uploadImage({ file: imageInput.files });
+      imageUrl = res.infos.original.url;
+      setStatus('');
+    } catch (e) {
+      clearImage();
+      setStatus('이미지를 올리지 못했어요: ' + (e.message || e), true);
+    } finally {
+      uploading = false; render();
+    }
   });
 
   // ---------- 거래처 목록 (이 기기에만 저장) ----------
@@ -219,8 +245,8 @@
     $('pickCount').textContent = `선택 ${picked.size}/${MAX_PICK}`;
     const names = [...picked];
     $('picked').textContent = names.length ? `받는 곳 (${names.length}곳): ${names.join(', ')}` : '오른쪽(아래) 거래처 목록에서 보낼 곳을 10곳까지 체크하세요.';
-    $('send').textContent = isMobile ? `선택한 ${names.length}곳에 카톡 보내기` : `글 복사 (선택한 ${names.length}곳)`;
-    $('send').disabled = names.length === 0;
+    $('send').textContent = `선택한 ${names.length}곳에 카톡 보내기`;
+    $('send').disabled = names.length === 0 || uploading;
   }
 
   $('search').addEventListener('input', render);
@@ -274,9 +300,6 @@
   });
 
   // ---------- 보내기 ----------
-  async function copyText(text) {
-    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
-  }
   function askConfirm() {
     $('confirmBox').hidden = false;
   }
@@ -294,17 +317,27 @@
     const text = message.value.trim();
     const file = imageInput.files[0];
     if (!picked.size) return;
+    if (!text && !file) { setStatus('보낼 메시지나 이미지를 넣어 주세요.', true); message.focus(); return; }
     if (!isMobile) {
-      if (!text) { setStatus('복사할 메시지를 입력해 주세요.', true); message.focus(); return; }
-      if (await copyText(text)) {
-        setStatus('글을 복사했어요. 카톡에 붙여넣고 전달로 보낸 뒤 아래 버튼을 눌러 주세요.');
-        askConfirm();
+      if (!initKakao()) return;
+      const pageUrl = location.origin + location.pathname;
+      const link = { webUrl: pageUrl, mobileWebUrl: pageUrl };
+      let template;
+      if (imageUrl) {
+        const [first, ...rest] = (text || ' ').split('\n');
+        template = { objectType: 'feed', content: { title: first, description: rest.join('\n').trim(), imageUrl, link } };
       } else {
-        setStatus('복사하지 못했어요. 글을 직접 선택해서 복사해 주세요.', true);
+        template = { objectType: 'text', text: text.slice(0, 200), link };
+      }
+      try {
+        Kakao.Share.sendDefault(template);
+        setStatus('친구 선택창에서 다 보냈으면 아래 버튼을 눌러 주세요.');
+        askConfirm();
+      } catch (e) {
+        setStatus('카톡 보내기 창을 열지 못했어요: ' + e.message, true);
       }
       return;
     }
-    if (!text && !file) { setStatus('보낼 메시지나 이미지를 넣어 주세요.', true); message.focus(); return; }
     if (!navigator.share) { setStatus('이 브라우저는 공유를 지원하지 않아요. 크롬이나 사파리로 열어 주세요.', true); return; }
     const data = {};
     if (text) data.text = text;
@@ -315,26 +348,6 @@
       askConfirm();
     } catch (e) {
       if (e.name !== 'AbortError') setStatus('공유 화면을 열지 못했어요: ' + e.message, true);
-    }
-  });
-
-  // PC: 사진을 PNG로 바꿔 클립보드에 넣습니다.
-  async function toPngBlob(file) {
-    if (file.type === 'image/png') return file;
-    const img = await createImageBitmap(file);
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width; canvas.height = img.height;
-    canvas.getContext('2d').drawImage(img, 0, 0);
-    return await new Promise(r => canvas.toBlob(r, 'image/png'));
-  }
-  $('copyImage').addEventListener('click', async () => {
-    const file = imageInput.files[0];
-    if (!file) return;
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': await toPngBlob(file) })]);
-      setStatus('사진을 복사했어요. 카톡에 Ctrl+V로 붙여넣으세요.');
-    } catch {
-      setStatus('사진을 복사하지 못했어요. 사진 파일을 카톡 창에 직접 끌어다 놓아 주세요.', true);
     }
   });
 
