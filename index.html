@@ -111,6 +111,9 @@
 
     <details style="margin-top:14px">
       <summary style="cursor:pointer;font-weight:600">거래처 추가</summary>
+      <button id="fromExcel" style="margin-top:10px;width:100%">엑셀 파일에서 불러오기</button>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" hidden>
+      <p class="hint">엑셀 첫 번째 시트에서 "거래처", "상호", "이름", "채팅방" 같은 제목이 붙은 열을 읽어요. 그런 제목이 없으면 맨 왼쪽 열을 읽어요.</p>
       <button id="fromContacts" hidden style="margin-top:10px;width:100%">휴대폰 연락처에서 불러오기</button>
       <textarea id="newVendors" rows="2" style="margin-top:10px" placeholder="거래처 이름 (여러 곳은 쉼표나 줄바꿈으로)"></textarea>
       <button id="addVendor" style="margin-top:8px;width:100%">목록에 추가</button>
@@ -293,6 +296,53 @@
       }
     });
   }
+
+  // 엑셀에서 거래처 이름 불러오기 (엑셀 읽기 도구는 누를 때만 불러옵니다)
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve();
+    return new Promise((ok, fail) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      sc.onload = ok; sc.onerror = () => fail(new Error('엑셀 읽기 도구를 불러오지 못했어요'));
+      document.head.append(sc);
+    });
+  }
+  function namesFromRows(rows) {
+    rows = rows.map(r => (r || []).map(c => String(c ?? '').trim()));
+    const KEYS = ['거래처', '상호', '업체', '이름', '채팅방', '친구'];
+    // 제목 줄과 이름 열 찾기 (위쪽 10줄 안에서)
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      if (rows[r].filter(Boolean).length < 2) continue;   // "거래처 목록" 같은 표 제목 줄은 건너뜀
+      const c = rows[r].findIndex(cell => KEYS.some(k => cell.includes(k)));
+      if (c >= 0) return rows.slice(r + 1).map(row => row[c] || '');
+    }
+    // 제목이 없으면 내용이 있는 첫 번째 열
+    const width = Math.max(0, ...rows.map(r => r.length));
+    for (let c = 0; c < width; c++) {
+      const col = rows.map(row => row[c] || '');
+      if (col.some(Boolean)) return col;
+    }
+    return [];
+  }
+  $('fromExcel').addEventListener('click', () => $('excelFile').click());
+  $('excelFile').addEventListener('change', async () => {
+    const file = $('excelFile').files[0];
+    if (!file) return;
+    try {
+      setStatus('엑셀을 읽는 중이에요...');
+      await loadXlsx();
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+      const HEADERS = ['상호', '상호명', '거래처', '거래처명', '업체', '업체명', '이름', '채팅방', '채팅방 이름', '친구'];
+      const names = namesFromRows(rows).filter(n => n && !/^\d+$/.test(n) && !HEADERS.includes(n));
+      const added = addNames(names);
+      setStatus(`엑셀에서 ${names.length}곳을 읽어 ${added}곳을 추가했어요.` + (names.length > added ? ' (이미 있는 곳은 뺐어요)' : ''));
+    } catch (e) {
+      setStatus('엑셀을 읽지 못했어요: ' + e.message, true);
+    } finally {
+      $('excelFile').value = '';
+    }
+  });
 
   $('resetSent').addEventListener('click', () => {
     if (!confirm('보냄 체크를 모두 지울까요? 새 메시지를 처음부터 보낼 때 쓰세요.')) return;
