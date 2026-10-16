@@ -42,12 +42,20 @@
   .status { margin: 10px 0 0; font-size: 14px; }
   .status.error { color: var(--danger); }
   details summary { cursor: pointer; font-weight: 600; }
+  /* PC 넓은 화면: 왼쪽은 보낼 내용, 오른쪽은 거래처 목록 */
+  @media (min-width: 900px) {
+    main { max-width: 1100px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    main > h1 { grid-column: 1 / -1; }
+  }
+  .copybtns { display: flex; gap: 8px; }
+  .copybtns button.primary { flex: 1; }
 </style>
 </head>
 <body>
 <main>
   <h1>거래처 카톡 공유</h1>
 
+  <div class="col">
   <section>
     <h2>보낼 메시지</h2>
     <textarea id="message" maxlength="200" placeholder="예) 안녕하세요, 이번 주 신상품 입고 안내드립니다."></textarea>
@@ -68,15 +76,30 @@
   </section>
 
   <section>
-    <button class="primary" id="plainShare">내용만 카톡으로 보내기</button>
-    <ol class="hint" style="padding-left:18px;margin:8px 0 0">
-      <li>버튼을 누르면 휴대폰 공유 화면이 떠요. 거기서 <b>카카오톡</b>을 골라요.</li>
-      <li>카톡에서 거래처를 여러 명 체크하고 <b>확인</b>을 누르면 글과 사진이 일반 메시지로 가요.</li>
-      <li>PC에서는 글이 복사되니, 카톡 대화창에 붙여넣기(Ctrl+V) 하세요.</li>
-    </ol>
+    <div id="mobileSend">
+      <button class="primary" id="plainShare">내용만 카톡으로 보내기</button>
+      <ol class="hint" style="padding-left:18px;margin:8px 0 0">
+        <li>버튼을 누르면 휴대폰 공유 화면이 떠요. 거기서 <b>카카오톡</b>을 골라요.</li>
+        <li>카톡에서 거래처를 여러 명 체크하고 <b>확인</b>을 누르면 글과 사진이 일반 메시지로 가요.</li>
+      </ol>
+    </div>
+    <div id="pcSend" hidden>
+      <div class="copybtns">
+        <button class="primary" id="copyText">① 글 복사</button>
+        <button class="primary" id="copyImage" hidden>② 사진 복사</button>
+      </div>
+      <ol class="hint" style="padding-left:18px;margin:8px 0 0">
+        <li>PC 카톡에서 <b>나와의 채팅</b>을 열고, 복사한 글(사진)을 <b>Ctrl+V</b>로 붙여넣어 보내요.</li>
+        <li>보낸 말풍선에 마우스 오른쪽 클릭 → <b>전달</b>을 눌러요.</li>
+        <li>오른쪽 <b>이번에 보낼 곳</b>의 거래처를 검색해 체크하고 <b>확인</b>. 사진도 같은 방법으로 전달해요.</li>
+      </ol>
+    </div>
     <p class="status" id="status" role="status"></p>
     <button id="share" style="width:100%;margin-top:12px">카드 형태로 보내기 (버튼 달린 카톡 카드)</button>
   </section>
+  </div>
+
+  <div class="col">
 
   <section>
     <h2>거래처 목록</h2>
@@ -109,6 +132,7 @@
       </div>
     </details>
   </section>
+  </div>
 </main>
 
 <script>
@@ -170,6 +194,7 @@
     preview.hidden = true;
     preview.removeAttribute('src');
     $('clearImage').hidden = true;
+    $('copyImage').hidden = true;
   }
   $('clearImage').addEventListener('click', () => { clearImage(); setStatus(''); });
   imageInput.addEventListener('change', async () => {
@@ -178,6 +203,7 @@
     if (!file) { clearImage(); return; }
     if (file.size > 5 * 1024 * 1024) { clearImage(); setStatus('이미지는 5MB 이하만 보낼 수 있어요.', true); return; }
     preview.src = URL.createObjectURL(file);
+    $('copyImage').hidden = false;
     preview.hidden = false;
     $('clearImage').hidden = false;
     if (!initKakao()) return;
@@ -194,6 +220,40 @@
     } finally {
       uploading = false;
       $('share').disabled = false;
+    }
+  });
+
+  // PC인지 휴대폰인지 구분합니다. PC는 공유 화면에 카톡이 없어서 복사 후 붙여넣기 방식을 씁니다.
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  $('mobileSend').hidden = !isMobile;
+  $('pcSend').hidden = isMobile;
+  if (!isMobile) $('sendBatch').textContent = '글 복사하기 (카톡에서 이 묶음에 전달)';
+
+  $('copyText').addEventListener('click', async () => {
+    const text = message.value.trim();
+    if (!text) { setStatus('복사할 메시지를 입력해 주세요.', true); message.focus(); return; }
+    setStatus(await copyText(text)
+      ? '글을 복사했어요. 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보내세요.'
+      : '복사하지 못했어요. 글을 직접 선택해서 복사해 주세요.');
+  });
+  async function toPngBlob(file) {
+    if (file.type === 'image/png') return file;
+    const img = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    return await new Promise(r => canvas.toBlob(r, 'image/png'));
+  }
+  $('copyImage').addEventListener('click', async () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+    try {
+      const blob = await toPngBlob(file);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      setStatus('사진을 복사했어요. 카톡 나와의 채팅에 Ctrl+V로 붙여넣어 보내세요.');
+    } catch (e) {
+      setStatus('사진을 복사하지 못했어요. 사진 파일을 카톡 창에 직접 끌어다 놓아 주세요.', true);
     }
   });
 
@@ -334,7 +394,7 @@
   }
   $('addVendor').addEventListener('click', addVendor);
   $('searchVendor').addEventListener('input', renderVendors);
-  $('sendBatch').addEventListener('click', () => $('plainShare').click());
+  $('sendBatch').addEventListener('click', () => (isMobile ? $('plainShare') : $('copyText')).click());
   $('markBatch').addEventListener('click', () => { currentBatch().forEach(v => v.done = true); saveVendors(); });
   $('resetChecks').addEventListener('click', () => {
     if (!confirm('보냄 표시를 모두 지우고 처음 묶음부터 다시 시작할까요?')) return;
